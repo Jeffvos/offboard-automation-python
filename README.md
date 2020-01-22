@@ -1,0 +1,1 @@
+Unfinished offboarding scipts for jira and gitlab.
