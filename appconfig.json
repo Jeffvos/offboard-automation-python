@@ -1,0 +1,30 @@
+{
+  "jira": {
+    "base_url":"",
+    "basic_auth":{
+      "username":"",
+      "password":""
+      },
+    "jqlurl":{
+      "git-ext":"",
+      "jira":""
+    },
+    "comment":{
+      "update":{
+        "comment":[{"add": {"body": "All users are deactivated"}}]
+              },
+    "transition":{
+      "id": "171"
+                }
+              }
+  },
+  "gitlab":{
+    "base_url":"",
+    "token":""
+  },
+  "ldap":{
+    "url":"",
+    "dn":"",
+    "password":""
+  }
+}
