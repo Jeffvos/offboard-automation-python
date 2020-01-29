@@ -18,16 +18,14 @@ def check_issues():
     jira_url = JIRA_BASE_URL+APPCONFIG['jira']['jqlurl']['git-ext']
     jira_request = requests.get(jira_url, auth=JIRA_AUTH, headers=JIRA_HEADERS)
     json_res = jira_request.json()
-    #for now expecting one issue if none exit script
+    #for now expecting one issue if none exit
     try:
-        print(len(json_res['issues']))
         jira_issue = json_res['issues'][0]['key']
     except IndexError:
         print('No new issues found.')
         sys.exit()
     content = json_res['issues'][0]['fields']['description']
     contentsplit = content.split()
-    print(content)
     for items in contentsplit:
         outputm = items.find('@')
         if outputm != -1:
@@ -63,9 +61,9 @@ def block_user(users_to_block):
         updateticket(users_to_block[1])
     return True
 
-def updateticket(jirakey):
+def updateticket(jira_issue):
     """ Function to update jira ticket for transistion id please use the workflows close ID"""
-    print("updating ticket "+ jirakey)
+    print("updating ticket "+ jira_issue)
     #comment = appconfig['jira']['comment']
     comment = """{
                 "update":{
@@ -78,6 +76,6 @@ def updateticket(jirakey):
             """
     deco = json.loads(comment)
     newcom = json.dumps(deco)
-    jira_comment = JIRA_BASE_URL+"issue/"+jirakey+"/transitions"
+    jira_comment = JIRA_BASE_URL+"issue/"+jira_issue+"/transitions"
     c_request = requests.post(jira_comment, data=newcom, auth=JIRA_AUTH, headers=JIRA_HEADERS)
     return c_request
