@@ -25,7 +25,6 @@ def block_user(users_to_block, jira_issue):
                 block_req = requests.post(git_block_url, headers=GIT_HEADER)
                 print(block_req)
         except IndexError:
-            print('error')
             error_list.append(user)
     if error_list != []:
         print(error_list)
