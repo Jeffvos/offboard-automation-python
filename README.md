@@ -1,1 +1,1 @@
-Unfinished offboarding scipts for jira and gitlab.
+Offboarding modules for jira and gitlab (work in progress).
