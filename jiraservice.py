@@ -7,7 +7,7 @@ with open('appconfig.json') as f:
     APPCONFIG = json.load(f)
 
 
-class Jira(object):
+class Jira():
     """ class to handle jira requests """
 
     def __init__(self, env):
@@ -42,7 +42,7 @@ class Jira(object):
         req = requests.get(url, auth=self._auth, headers=self._headers)
         return self._handle_response(req)
 
-    def _post_request(self, issue_key):
+    def post_comment_request(self, issue_key):
         """ post request """
         url = self._compose_url("comment_issue").format(issue_key)
         comment = self._compose_comment()
@@ -72,7 +72,7 @@ class Jira(object):
             mail_position = item.find('@')
             if mail_position != -1:
                 to_disable.append(item[:mail_position])
-                self._disable_access(item[:mail_position], issue_key)
+                self._disable_access(item[:mail_position])
         print("\nSuccess: ", self._success, "\nFailed: ", self._failed)
         return self._update_issue(issue_key)
 
@@ -91,6 +91,7 @@ class Jira(object):
                 response['issues'][issue_number]['fields']['description'],
                 response['issues'][issue_number]['key'])
             issue_number += 1
+        return issue_number
 
     def _check_success(self, response):
         full_response = response.json()
@@ -98,10 +99,11 @@ class Jira(object):
             self._failed.append(full_response['name'])
             print(full_response['errors'])
         self._success.append(full_response['name'])
+        return response
 
-    def _disable_access(self, to_disable, issue_key):
+    def _disable_access(self, to_disable):
         """ deactivate in jira """
-        self._put_request(self._compose_url(
+        return self._put_request(self._compose_url(
             "deactivate_user").format(to_disable))
 
     def _compose_comment(self):
@@ -115,8 +117,9 @@ class Jira(object):
     def _update_issue(self, issue_key):
         """ update the jira issue and close the it """
         if len(self._failed) == 0:
-            return self._post_request(issue_key)
+            return self.post_comment_request(issue_key)
         print("Double check: ", self._failed)
+        return self._failed
 
     def call(self):
         """ init call """
