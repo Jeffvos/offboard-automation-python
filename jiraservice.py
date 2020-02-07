@@ -6,76 +6,118 @@ import requests
 with open('appconfig.json') as f:
     APPCONFIG = json.load(f)
 
-JIRA_BASE_URL = APPCONFIG['jira']['base_url']
-JIRA_HEADERS = {"content-type": "application/json"}
-JIRA_USER = APPCONFIG['jira']['basic_auth']['username']
-JIRA_PASS = APPCONFIG['jira']['basic_auth']['password']
-JIRA_AUTH = (JIRA_USER, JIRA_PASS)
 
-def check_issues():
-    """ Function to check if there is a issue in jira based on jql """
-    users_to_block = []
-    jira_url = JIRA_BASE_URL+APPCONFIG['jira']['jqlurl']['git-ext']
-    jira_request = requests.get(jira_url, auth=JIRA_AUTH, headers=JIRA_HEADERS)
-    json_res = jira_request.json()
-    #for now expecting one issue if none exit
-    try:
-        jira_issue = json_res['issues'][0]['key']
-    except IndexError:
-        print('No new issues found.')
-        sys.exit()
-    content = json_res['issues'][0]['fields']['description']
-    contentsplit = content.split()
-    for items in contentsplit:
-        outputm = items.find('@')
-        if outputm != -1:
-            users_to_block.append(items[:outputm])
-    print(users_to_block)
-    return users_to_block, jira_issue
+class Jira(object):
+    """ class to handle jira requests """
 
-def block_user(users_to_block):
-    """ Function to change the users status to false """
-    jira_data = "{\"active\": \"false\"}"
-    suc_count = 0
-    fail_count = 0
-    error_list = []
-    for user in users_to_block[0]:
-        jira_block = JIRA_BASE_URL+"user?username={}".format(user)
-        jira_req = requests.put(jira_block, data=jira_data, auth=JIRA_AUTH, headers=JIRA_HEADERS)
-        jira_json = jira_req.json()
-        try:
-            if jira_json['errors'] != {}:
-                print(jira_json['errors'])
-                error_list.append(user)
-                fail_count = fail_count + 1
-        except IndexError:
-            print('Deactivated: '+ user)
-            suc_count = suc_count + 1
+    def __init__(self, env):
+        if env not in APPCONFIG['jira']['jqlurl']:
+            print('invalid environment, check your input ')
+            sys.exit()
+        self._env = env
+        self._base_url = APPCONFIG['jira']['base_url']
+        self._headers = {"content-type": "application/json"}
+        self._user = APPCONFIG['jira']['basic_auth']['username']
+        self._pass = APPCONFIG['jira']['basic_auth']['password']
+        self._auth = (self._user, self._pass)
+        self._success = []
+        self._failed = []
 
-    print('Users deactivated: {}. Failed deactivation {}.'.format(suc_count, fail_count))
+    def _compose_url(self, action):
+        """ composing of the url for the env"""
+        options = {
+            "check_issue": APPCONFIG['jira']['jqlurl'][self._env],
+            "comment_issue": "issue/{}/transitions",
+            "deactivate_user": "user?username={}"
+        }
+        return self._base_url + options[action]
 
-    if fail_count >= 1:
-        print('Failed to deactivate users: ')
-        print(error_list)
-    else:
-        updateticket(users_to_block[1])
-    return True
+    def _handle_response(self, response):
+        """ handeling response return """
+        return self._check_issues(response.json())
 
-def updateticket(jira_issue):
-    """ Function to update jira ticket for transistion id please use the workflows close ID"""
-    print("updating ticket "+ jira_issue)
-    #comment = appconfig['jira']['comment']
-    comment = """{
-                "update":{
-                    "comment":[{"add": {"body": "All Users are deactivated."}}]
-                },
-                "transition":{
-                    "id": "171"
-                    }
-                }
-            """
-    deco = json.loads(comment)
-    newcom = json.dumps(deco)
-    jira_comment = JIRA_BASE_URL+"issue/"+jira_issue+"/transitions"
-    c_request = requests.post(jira_comment, data=newcom, auth=JIRA_AUTH, headers=JIRA_HEADERS)
-    return c_request
+    def _get_request(self):
+        """ request creation """
+        url = self._compose_url("check_issue")
+        req = requests.get(url, auth=self._auth, headers=self._headers)
+        return self._handle_response(req)
+
+    def _post_request(self, issue_key):
+        """ post request """
+        url = self._compose_url("comment_issue").format(issue_key)
+        comment = self._compose_comment()
+        req = requests.post(url, data=comment, auth=self._auth,
+                            headers=self._headers)
+        return req.status_code
+
+    def _put_request(self, url):
+        """ put requests """
+        jira_data = "{\"active\": \"false\"}"
+        req = requests.put(url, data=jira_data, auth=self._auth,
+                           headers=self._headers)
+        return self._check_success(req)
+
+    def _check_issues(self, response):
+        """ check if there are any open issues"""
+        if response['total'] == 0:
+            print('no new issues')
+            sys.exit()
+        return self._check_issue_count(response)
+
+    def _convert_issue(self, issue_body, issue_key):
+        """ creation of users to block list for"""
+        to_disable = []
+        issue = issue_body.split()
+        for item in issue:
+            mail_position = item.find('@')
+            if mail_position != -1:
+                to_disable.append(item[:mail_position])
+                self._disable_access(item[:mail_position], issue_key)
+        print("\nSuccess: ", self._success, "\nFailed: ", self._failed)
+        return self._update_issue(issue_key)
+
+    def _check_issue_count(self, response):
+        """ check the amount of issues """
+        if response['total'] == 1:
+            return self._convert_issue(
+                response['issues'][0]['fields']['description'],
+                response['issues'][0]['key'])
+        return self._multiple_issues(response)
+
+    def _multiple_issues(self, response):
+        issue_number = 0
+        while issue_number < response['total']:
+            self._convert_issue(
+                response['issues'][issue_number]['fields']['description'],
+                response['issues'][issue_number]['key'])
+            issue_number += 1
+
+    def _check_success(self, response):
+        full_response = response.json()
+        if response.status_code != 200:
+            self._failed.append(full_response['name'])
+            print(full_response['errors'])
+        self._success.append(full_response['name'])
+
+    def _disable_access(self, to_disable, issue_key):
+        """ deactivate in jira """
+        self._put_request(self._compose_url(
+            "deactivate_user").format(to_disable))
+
+    def _compose_comment(self):
+        """ composing the comment """
+        issue_comment = APPCONFIG['jira']['comment']
+        return json.dumps(issue_comment)
+
+    def _check_transactions(self):
+        pass
+
+    def _update_issue(self, issue_key):
+        """ update the jira issue and close the it """
+        if len(self._failed) == 0:
+            return self._post_request(issue_key)
+        print("Double check: ", self._failed)
+
+    def call(self):
+        """ init call """
+        return self._get_request()
