@@ -33,7 +33,6 @@ class Gitlab():
             user_id = data_json[0]['id']
             return self._disable_user(user_id)
         else:
-
             return self._success_dis(user)
 
     def check_user(self, user):
