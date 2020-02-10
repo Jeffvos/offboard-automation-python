@@ -2,6 +2,7 @@
 import sys
 import json
 import requests
+import gitlabservice
 
 with open('appconfig.json') as f:
     APPCONFIG = json.load(f)
@@ -50,12 +51,12 @@ class Jira():
                             headers=self._headers)
         return req.status_code
 
-    def _put_request(self, url):
+    def _put_request(self, url, user):
         """ put requests """
         jira_data = "{\"active\": \"false\"}"
         req = requests.put(url, data=jira_data, auth=self._auth,
                            headers=self._headers)
-        return self._check_success(req)
+        return self._check_success(req, user)
 
     def _check_issues(self, response):
         """ check if there are any open issues"""
@@ -71,9 +72,12 @@ class Jira():
         for item in issue:
             mail_position = item.find('@')
             if mail_position != -1:
-                to_disable.append(item[:mail_position])
-                self._disable_access(item[:mail_position])
-        print("\nSuccess: ", self._success, "\nFailed: ", self._failed)
+                current_user = item[:mail_position]
+                to_disable.append(current_user)
+                if self._env == "jira":
+                    self._disable_access(current_user)
+                gitlabservice.Gitlab().check_user(current_user)
+        #print("\nSuccess: ", self._success, "\nFailed: ", self._failed)
         return self._update_issue(issue_key)
 
     def _check_issue_count(self, response):
@@ -93,18 +97,19 @@ class Jira():
             issue_number += 1
         return issue_number
 
-    def _check_success(self, response):
+    def _check_success(self, response, user):
         full_response = response.json()
         if response.status_code != 200:
-            self._failed.append(full_response['name'])
-            print(full_response['errors'])
-        self._success.append(full_response['name'])
+            full_response['name'] = user
+            self._failed.append(full_response)
+        else:
+            print("\nDeactivated: ", full_response['name'])
         return response
 
     def _disable_access(self, to_disable):
         """ deactivate in jira """
         return self._put_request(self._compose_url(
-            "deactivate_user").format(to_disable))
+            "deactivate_user").format(to_disable), to_disable)
 
     def _compose_comment(self):
         """ composing the comment """
