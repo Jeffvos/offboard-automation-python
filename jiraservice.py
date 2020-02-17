@@ -61,8 +61,7 @@ class Jira():
     def _check_issues(self, response):
         """ check if there are any open issues"""
         if response['total'] == 0:
-            print('no new issues')
-            sys.exit()
+            print('no new issues for env', self._env)
         return self._check_issue_count(response)
 
     def _convert_issue(self, issue_body, issue_key):
@@ -76,8 +75,8 @@ class Jira():
                 to_disable.append(current_user)
                 if self._env == "jira":
                     self._disable_access(current_user)
-                gitlabservice.Gitlab().check_user(current_user)
-        #print("\nSuccess: ", self._success, "\nFailed: ", self._failed)
+                else:
+                    gitlabservice.Gitlab().check_user(current_user)
         return self._update_issue(issue_key)
 
     def _check_issue_count(self, response):
@@ -103,7 +102,7 @@ class Jira():
             full_response['name'] = user
             self._failed.append(full_response)
         else:
-            print("\nDeactivated: ", full_response['name'])
+            print("Deactivated: ", full_response['name'])
         return response
 
     def _disable_access(self, to_disable):
