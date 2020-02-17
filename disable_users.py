@@ -8,8 +8,8 @@ with open('appconfig.json') as f:
 
 
 def disable_users():
-    for i in APPCONFIG['jira']['jqlurl']:
-        jiraservice.Jira(i).call()
+    for env in APPCONFIG['jira']['jqlurl']:
+        jiraservice.Jira(env).call()
 
 
 disable_users()
