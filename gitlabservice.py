@@ -21,13 +21,11 @@ class Gitlab():
         return self._base_url+options[action]
 
     def _success_dis(self, user):
-        print(user)
+        print("Deactivated user ID: ", user)
 
     def _request(self, method, url, user):
         """ request depending on method and url"""
         req = requests.request(method, url, headers=self._header)
-        print(req)
-        print(method)
         if method == "GET":
             data_json = req.json()
             user_id = data_json[0]['id']
@@ -41,5 +39,4 @@ class Gitlab():
 
     def _disable_user(self, user_id):
         url = self._compose_url("disable_user").format(user_id)
-        print(url)
         return self._request("POST", url, user_id)
