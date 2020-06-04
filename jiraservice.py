@@ -43,10 +43,10 @@ class Jira():
         req = requests.get(url, auth=self._auth, headers=self._headers)
         return self._handle_response(req)
 
-    def post_comment_request(self, issue_key):
+    def post_comment_request(self, issue_key, message):
         """ post request """
         url = self._compose_url("comment_issue").format(issue_key)
-        comment = self._compose_comment()
+        comment = self._compose_comment(message)
         req = requests.post(url, data=comment, auth=self._auth,
                             headers=self._headers)
         return req.status_code
@@ -76,7 +76,7 @@ class Jira():
                 if self._env == "jira":
                     self._disable_access(current_user)
                 else:
-                    gitlabservice.Gitlab().check_user(current_user)
+                    gitlabservice.Gitlab().check_instances(current_user)
         return self._update_issue(issue_key)
 
     def _check_issue_count(self, response):
@@ -110,9 +110,11 @@ class Jira():
         return self._put_request(self._compose_url(
             "deactivate_user").format(to_disable), to_disable)
 
-    def _compose_comment(self):
+    def _compose_comment(self, message):
         """ composing the comment """
+        APPCONFIG['jira']['comment']['update']['comment'][0]['add']['body'] = message
         issue_comment = APPCONFIG['jira']['comment']
+        print(issue_comment)
         return json.dumps(issue_comment)
 
     def _check_transactions(self):
@@ -120,10 +122,14 @@ class Jira():
 
     def _update_issue(self, issue_key):
         """ update the jira issue and close the it """
+        message = ""
         if len(self._failed) == 0:
-            return self.post_comment_request(issue_key)
-        print("Double check: ", self._failed)
-        return self._failed
+            message = "Users are disabled"
+            return self.post_comment_request(issue_key, message)
+        else:
+            message = self._failed[0]['errorMessages'][0]
+            print("Double check: ", self._failed)
+            return self.post_comment_request(issue_key, message)
 
     def call(self):
         """ init call """
