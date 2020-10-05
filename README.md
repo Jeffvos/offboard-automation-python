@@ -8,6 +8,7 @@ First the script check if there is a ticket awaiting, based on a given JQL.
 The script parses all usernames from the given ticket and checks if the account exists and if the user can be deactivated.
 
 ###Closing accounts
+
 *Jira Users will be deactivated in the Jira Directory (Not Removed)
 
 *Gitlab user will be blocked
