@@ -45,8 +45,7 @@ class Jira:
         return self._handle_response(req)
 
     def post_comment_request(self, issue_key, message):
-        """ post request """
-        print(type(message))
+        """ post comment request, checks if the type equals to dict and changes the transition (to blocked) """
         if isinstance(message, dict):
             APPCONFIG['jira']['comment']['transition']['id'] = "161"
             comment = self._compose_comment(message['comment'])
@@ -130,7 +129,7 @@ class Jira:
         pass
 
     def _update_issue(self, issue_key):
-        """ update the jira issue and close the it """
+        """ update the jira issue and close the it. added User to failed message"""
         message = ""
         if len(self._failed) == 0:
             message = "Users are disabled"
