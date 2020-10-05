@@ -8,7 +8,7 @@ with open('appconfig.json') as f:
     APPCONFIG = json.load(f)
 
 
-class Jira():
+class Jira:
     """ class to handle jira requests """
 
     def __init__(self, env):
@@ -31,10 +31,11 @@ class Jira():
             "comment_issue": "issue/{}/transitions",
             "deactivate_user": "user?username={}"
         }
+        print(options['check_issue'])
         return self._base_url + options[action]
 
     def _handle_response(self, response):
-        """ handeling response return """
+        """ handling response return """
         return self._check_issues(response.json())
 
     def _get_request(self):
@@ -45,10 +46,18 @@ class Jira():
 
     def post_comment_request(self, issue_key, message):
         """ post request """
+        print(type(message))
+        if isinstance(message, dict):
+            APPCONFIG['jira']['comment']['transition']['id'] = "161"
+            comment = self._compose_comment(message['comment'])
+            print(APPCONFIG['jira']['comment']['transition']['id'])
+        else:
+            comment = self._compose_comment(message)
+        print("hoi")
         url = self._compose_url("comment_issue").format(issue_key)
-        comment = self._compose_comment(message)
         req = requests.post(url, data=comment, auth=self._auth,
                             headers=self._headers)
+        print(req.text)
         return req.status_code
 
     def _put_request(self, url, user):
@@ -127,9 +136,11 @@ class Jira():
             message = "Users are disabled"
             return self.post_comment_request(issue_key, message)
         else:
-            message = self._failed[0]['errorMessages'][0]
-            print("Double check: ", self._failed)
-            return self.post_comment_request(issue_key, message)
+            message = self._failed[0]['errors']['active']
+            failed_user = self._failed[0]['name']
+            message_with_user = message.replace('user', failed_user)
+            print("Double check: ", message_with_user)
+            return self.post_comment_request(issue_key, {"comment": message_with_user})
 
     def call(self):
         """ init call """
