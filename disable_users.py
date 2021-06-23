@@ -1,15 +1,11 @@
 """ Main - still work in progress """
 import json
-import gitlabservice
-import jiraservice
-
-with open('appconfig.json') as f:
-    APPCONFIG = json.load(f)
-
+import validation
+from config import config
 
 def disable_users():
-    for env in APPCONFIG['jira']['jqlurl']:
-        jiraservice.Jira(env).call()
+    for env in config()['jira']['jqlurl']:
+        validation.Validate(env).now()
 
-
-disable_users()
+if __name__ =="__main__":
+    disable_users()
